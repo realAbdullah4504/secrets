@@ -14,6 +14,7 @@ const LocalStrategy = require("passport-local")
 // FOR GOOGLE OAUTH
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const findOrCreate=require("mongoose-findorcreate");
+const FacebookStrategy = require("passport-facebook").Strategy;
 
 
 
@@ -39,7 +40,8 @@ mongoose.connect("mongodb://localhost:27017/userDB", { useNewUrlParser: true });
 const userSchema = new mongoose.Schema({
     email: String,
     password: String,
-    googleId:String
+    googleId:String,
+    facebookId:String
 });
 //for passport user schema
 userSchema.plugin(passportLocalMongoose);
@@ -59,6 +61,7 @@ passport.serializeUser(function(user, done) {
     done(null, user);
   });
 
+  //for google strategy
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
@@ -68,6 +71,19 @@ passport.use(new GoogleStrategy({
     //should install the package mongoose findorcreate
     console.log(profile);
     User.findOrCreate({ googleId: profile.id }, function (err, user) {
+      return cb(err, user);
+    });
+  }
+));
+
+///for facebook oauth
+passport.use(new FacebookStrategy({
+    clientID: process.env.FACEBOOK_ID,
+    clientSecret: process.env.FACEBOOK_SECRET,
+    callbackURL: "http://localhost:3000/auth/facebook/secrets"
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    User.findOrCreate({ facebookId: profile.id }, function (err, user) {
       return cb(err, user);
     });
   }
@@ -85,6 +101,17 @@ app.get('/auth/google',
 
   app.get('/auth/google/secrets', 
   passport.authenticate('google', { failureRedirect: '/login' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('/secrets');
+  });
+
+  // for facebook authentication
+  app.get('/auth/facebook',
+  passport.authenticate('facebook'));
+
+app.get('/auth/facebook/secrets',
+  passport.authenticate('facebook', { failureRedirect: '/login' }),
   function(req, res) {
     // Successful authentication, redirect home.
     res.redirect('/secrets');
